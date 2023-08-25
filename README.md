@@ -1,0 +1,1 @@
+# MediatorRegistrations.Generator
