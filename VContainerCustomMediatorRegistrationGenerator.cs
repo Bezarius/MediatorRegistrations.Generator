@@ -13,14 +13,14 @@
     class Program
     {
         static void PrintHelp()
-    {
-        Console.WriteLine("Custom Mediator Generator Tool");
-        Console.WriteLine("Usage: CustomMediatorGeneratorTool <inputFolderPath> <outputFolderPath> <namespace>");
-        Console.WriteLine("Arguments:");
-        Console.WriteLine("  <inputFolderPath>    Path to the input folder containing .cs files.");
-        Console.WriteLine("  <outputFolderPath>   Path to the output folder for generated registrations.");
-        Console.WriteLine("  <namespace>          Namespace for the generated code.");
-    }
+        {
+            Console.WriteLine("Custom Mediator Generator Tool");
+            Console.WriteLine("Usage: CustomMediatorGeneratorTool <inputFolderPath> <outputFolderPath> <namespace>");
+            Console.WriteLine("Arguments:");
+            Console.WriteLine("  <inputFolderPath>    Path to the input folder containing .cs files.");
+            Console.WriteLine("  <outputFolderPath>   Path to the output folder for generated registrations.");
+            Console.WriteLine("  <namespace>          Namespace for the generated code.");
+        }
 
         static void Main(string[] args)
         {
@@ -35,6 +35,12 @@
             var outputFolderPath = args[1]; // Path to the output folder
             var @namespace = args[2]; // Namespace for the generated code
 
+            var outputFilePath = Path.Combine(outputFolderPath, "GeneratedMediatorRegistrations.cs");
+            if (File.Exists(outputFilePath))
+            {
+                File.Delete(outputFilePath);
+            }
+
             var csFiles = Directory.GetFiles(inputFolderPath, "*.cs", SearchOption.AllDirectories);
 
             var compilation = CreateCompilation(csFiles);
@@ -46,13 +52,12 @@
             var generatedSyntaxTrees = outputCompilation.SyntaxTrees;
 
             // Save the generated syntax trees to files or display them
-            var outputFilePath = Path.Combine(outputFolderPath, "GeneratedMediatorRegistrations.cs");
             foreach (var syntaxTree in generatedSyntaxTrees)
             {
                 var generatedCode = syntaxTree.ToString();
                 if (generatedCode.IndexOf("public static class VContainerCustomMediatorRegistration") > -1)
                 {
-                    
+
                     File.WriteAllText(outputFilePath, generatedCode);
                     Console.WriteLine($"Generated registrations saved to {outputFilePath}");
                     break;
@@ -77,16 +82,13 @@
     {
 
         private readonly string _ns;
-        
+
         public VContainerCustomMediatorRegistrationGenerator(string ns)
         {
             _ns = ns;
         }
 
-        public void Initialize(GeneratorInitializationContext context)
-        {
-            // No initialization required for this example
-        }
+        public void Initialize(GeneratorInitializationContext context)  {   }
 
         public void Execute(GeneratorExecutionContext context)
         {
@@ -104,7 +106,8 @@
             var usings = GetUsingsFromHandlerClasses(handlerClasses);
             var registrations = GenerateRegistrationBlock(handlerClasses, usings, compilation);
 
-            return @$"using VContainer;
+            return @$" // *** GENERATED ***
+using VContainer;
 using Mediator.Interfaces;
 {usings}
 
@@ -141,7 +144,7 @@ namespace {_ns}
             while (baseTypeSymbol != null)
             {
                 var baseTypeName = baseTypeSymbol.OriginalDefinition.ToDisplayString();
-                if (baseTypeName.Contains("QueryHandler<") || baseTypeName.Contains("CommandHandler<"))
+                if (baseTypeName.Contains("IQueryHandler<") || baseTypeName.Contains("ICommandHandler<"))
                 {
                     return true;
                 }
@@ -182,21 +185,38 @@ namespace {_ns}
                 var semanticModel = compilation.GetSemanticModel(handlerClass.SyntaxTree);
                 var baseTypeSymbol = semanticModel.GetDeclaredSymbol(handlerClass)?.BaseType;
 
-                if (baseTypeSymbol != null &&
-                    (baseTypeSymbol.ToString().Contains("QueryHandler<") || baseTypeSymbol.ToString().Contains("CommandHandler<")))
+                if (baseTypeSymbol != null)
                 {
-                    var typeArguments = baseTypeSymbol.TypeArguments;
-                    if (typeArguments.Length == 2)
+                    if (baseTypeSymbol.ToString().Contains("IQueryHandler<"))
                     {
-                        var queryTypeName = typeArguments[0].ToDisplayString();
-                        var returnType = typeArguments[1].ToDisplayString();
-
-                        var registrationLine = $"           builder{Environment.NewLine}" +
-                            $"              .Register<{queryTypeName}.{handlerName}>(Lifetime.Transient){Environment.NewLine}" +
-                            $"              .As(typeof(IRequestHandler<{queryTypeName}, {returnType}>));";
-                        registrations.AppendLine(registrationLine);
+                        {
+                            var typeArguments = baseTypeSymbol.TypeArguments;
+                            if (typeArguments.Length == 2)
+                            {
+                                var queryTypeName = typeArguments[0].ToDisplayString();
+                                var returnType = typeArguments[1].ToDisplayString();
+                                var registrationLine = $"           builder{Environment.NewLine}" +
+                                    $"              .Register<{queryTypeName}.{handlerName}>(Lifetime.Transient){Environment.NewLine}" +
+                                    $"              .As(typeof(IQueryHandler<{queryTypeName}, {returnType}>));";
+                                registrations.AppendLine(registrationLine);
+                            }
+                        }
+                    }
+                    else if(baseTypeSymbol.ToString().Contains("ICommandHandler<"))
+                    {
+                        var typeArguments = baseTypeSymbol.TypeArguments;
+                        if (typeArguments.Length == 1)
+                        {
+                            var commandTypeName = typeArguments[0].ToDisplayString();
+                            var registrationLine = $"           builder{Environment.NewLine}" +
+                                $"              .Register<{commandTypeName}.{handlerName}>(Lifetime.Transient){Environment.NewLine}" +
+                                $"              .As(typeof(ICommandHandler<{commandTypeName}>));";
+                            registrations.AppendLine(registrationLine);
+                        }
                     }
                 }
+                
+                
             }
 
             return registrations.ToString();

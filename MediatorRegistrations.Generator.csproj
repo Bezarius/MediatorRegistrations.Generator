@@ -8,8 +8,15 @@
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <ToolCommandName>dotnet-umgen</ToolCommandName>
     <Title>Mediator.Generator</Title>
-    <Version>1.0.2</Version>
+    <Version>1.0.0</Version>
     <OutputType>Exe</OutputType>
+    <Authors>MstislavPavlov</Authors>
+    <Description>A generator for registering handlers for the IMediator and VContainer.</Description>
+    <Copyright>MstislavPavlov</Copyright>
+    <PackageProjectUrl>https://github.com/Bezarius/MediatorRegistrations.Generator</PackageProjectUrl>
+    <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>imediator, generator, unity3d</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

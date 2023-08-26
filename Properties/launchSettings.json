@@ -2,7 +2,7 @@
   "profiles": {
     "MediatorRegistrations.Generator": {
       "commandName": "Project",
-      "commandLineArgs": "\"E:/Repositories/sfs-client-2/Assets/\" \"E:/Repositories/sfs-client-2/Assets/src/Core/Operations\" \"Core.Operations\""
+      "commandLineArgs": "\"E:/Repositories/sfs-client/Assets/\" \"E:/Repositories/sfs-client/Assets/src/Core/Operations\" \"Core.Operations\""
     }
   }
 }
