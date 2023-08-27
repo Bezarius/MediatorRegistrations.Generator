@@ -108,8 +108,6 @@
 
             return @$" // *** GENERATED ***
 using VContainer;
-using Mediator.Interfaces;
-{usings}
 
 namespace {_ns}
 {{
@@ -180,43 +178,49 @@ namespace {_ns}
 
             foreach (var handlerClass in handlerClasses)
             {
-                var handlerName = handlerClass.Identifier.Text;
-
-                var semanticModel = compilation.GetSemanticModel(handlerClass.SyntaxTree);
-                var baseTypeSymbol = semanticModel.GetDeclaredSymbol(handlerClass)?.BaseType;
-
-                if (baseTypeSymbol != null)
+                try
                 {
-                    if (baseTypeSymbol.ToString().Contains("IQueryHandler<"))
+                    var handlerNamespace = ((NamespaceDeclarationSyntax)handlerClass.Parent).Name.ToString();
+                    var handlerName = $"{handlerNamespace}.{handlerClass.Identifier.Text}";
+
+                    var semanticModel = compilation.GetSemanticModel(handlerClass.SyntaxTree);
+                    var baseTypeSymbol = semanticModel.GetDeclaredSymbol(handlerClass)?.BaseType;
+
+                    if (baseTypeSymbol != null)
                     {
+                        if (baseTypeSymbol.ToString().Contains("IQueryHandler<"))
+                        {
+                            {
+                                var typeArguments = baseTypeSymbol.TypeArguments;
+                                if (typeArguments.Length == 2)
+                                {
+                                    var queryTypeName = typeArguments[0].ToDisplayString();
+                                    var returnType = typeArguments[1].ToDisplayString();
+                                    var registrationLine = $"           builder{Environment.NewLine}" +
+                                        $"              .Register<{handlerName}>(Lifetime.Transient){Environment.NewLine}" +
+                                        $"              .As(typeof(Mediator.Interfaces.IQueryHandler<{queryTypeName}, {returnType}>));";
+                                    registrations.AppendLine(registrationLine);
+                                }
+                            }
+                        }
+                        else if (baseTypeSymbol.ToString().Contains("ICommandHandler<"))
                         {
                             var typeArguments = baseTypeSymbol.TypeArguments;
-                            if (typeArguments.Length == 2)
+                            if (typeArguments.Length == 1)
                             {
-                                var queryTypeName = typeArguments[0].ToDisplayString();
-                                var returnType = typeArguments[1].ToDisplayString();
+                                var commandTypeName = typeArguments[0].ToDisplayString();
                                 var registrationLine = $"           builder{Environment.NewLine}" +
-                                    $"              .Register<{queryTypeName}.{handlerName}>(Lifetime.Transient){Environment.NewLine}" +
-                                    $"              .As(typeof(IQueryHandler<{queryTypeName}, {returnType}>));";
+                                    $"              .Register<{handlerName}>(Lifetime.Transient){Environment.NewLine}" +
+                                    $"              .As(typeof(Mediator.Interfaces.ICommandHandler<{commandTypeName}>));";
                                 registrations.AppendLine(registrationLine);
                             }
                         }
                     }
-                    else if(baseTypeSymbol.ToString().Contains("ICommandHandler<"))
-                    {
-                        var typeArguments = baseTypeSymbol.TypeArguments;
-                        if (typeArguments.Length == 1)
-                        {
-                            var commandTypeName = typeArguments[0].ToDisplayString();
-                            var registrationLine = $"           builder{Environment.NewLine}" +
-                                $"              .Register<{commandTypeName}.{handlerName}>(Lifetime.Transient){Environment.NewLine}" +
-                                $"              .As(typeof(ICommandHandler<{commandTypeName}>));";
-                            registrations.AppendLine(registrationLine);
-                        }
-                    }
                 }
-                
-                
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Can't generate registration for: {handlerClass.Identifier.Text}" + ex.ToString());
+                }
             }
 
             return registrations.ToString();
