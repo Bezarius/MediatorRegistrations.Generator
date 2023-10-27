@@ -88,7 +88,7 @@
             _ns = ns;
         }
 
-        public void Initialize(GeneratorInitializationContext context)  {   }
+        public void Initialize(GeneratorInitializationContext context) { }
 
         public void Execute(GeneratorExecutionContext context)
         {
@@ -108,6 +108,7 @@
 
             return @$" // *** GENERATED ***
 using VContainer;
+{usings}
 
 namespace {_ns}
 {{
@@ -186,6 +187,19 @@ namespace {_ns}
                     var semanticModel = compilation.GetSemanticModel(handlerClass.SyntaxTree);
                     var baseTypeSymbol = semanticModel.GetDeclaredSymbol(handlerClass)?.BaseType;
 
+                    // Analyze the [LifeTime] attribute
+                    var lifetimeAttribute = handlerClass.AttributeLists
+                        .SelectMany(attributeList => attributeList.Attributes)
+                        .FirstOrDefault(attribute => attribute.Name.ToString() == "LifeTime");
+
+                    var lifetimeValue = "Lifetime.Transient";
+                    if (lifetimeAttribute != null && lifetimeAttribute.ArgumentList != null)
+                    {
+                        var lifetimeArgument = lifetimeAttribute.ArgumentList.Arguments[0];
+                        lifetimeValue = "Lifetime." + lifetimeArgument.Expression.ToString().Split(new[] { "." }, StringSplitOptions.RemoveEmptyEntries)[1];
+
+                    }
+
                     if (baseTypeSymbol != null)
                     {
                         if (baseTypeSymbol.ToString().Contains("IQueryHandler<"))
@@ -197,7 +211,7 @@ namespace {_ns}
                                     var queryTypeName = typeArguments[0].ToDisplayString();
                                     var returnType = typeArguments[1].ToDisplayString();
                                     var registrationLine = $"           builder{Environment.NewLine}" +
-                                        $"              .Register<{handlerName}>(Lifetime.Transient){Environment.NewLine}" +
+                                        $"              .Register<{handlerName}>({lifetimeValue}){Environment.NewLine}" +
                                         $"              .As(typeof(Mediator.Interfaces.IQueryHandler<{queryTypeName}, {returnType}>));";
                                     registrations.AppendLine(registrationLine);
                                 }
@@ -210,7 +224,7 @@ namespace {_ns}
                             {
                                 var commandTypeName = typeArguments[0].ToDisplayString();
                                 var registrationLine = $"           builder{Environment.NewLine}" +
-                                    $"              .Register<{handlerName}>(Lifetime.Transient){Environment.NewLine}" +
+                                    $"              .Register<{handlerName}>({lifetimeValue}){Environment.NewLine}" +
                                     $"              .As(typeof(Mediator.Interfaces.ICommandHandler<{commandTypeName}>));";
                                 registrations.AppendLine(registrationLine);
                             }
